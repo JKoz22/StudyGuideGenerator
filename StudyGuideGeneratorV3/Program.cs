@@ -97,7 +97,12 @@ namespace StudyGuideGeneratorV3
     }
     class PdfEditor
     {
-        public static void BmpToPdf(List<Bitmap> MyBmps)
+        public static byte[] ImageToByte(System.Drawing.Image img)
+        {
+            ImageConverter converter = new ImageConverter();
+            return (byte[])converter.ConvertTo(img, typeof(byte[]));
+        }
+        public static void BmpToPdf(Bitmap MyBmp, int PageNum)
         {
             {
                 /*Document doc = new Document(PageSize.A4);
@@ -108,13 +113,14 @@ namespace StudyGuideGeneratorV3
                 doc.Add(pdfImage);
                 doc.Close();*/
             }
-            System.Drawing.Image image = System.Drawing.Image.FromFile(@"C:\Users\JustinKozlowski\MyBestPage");
-            iText.Kernel.Geom.PageSize bmpSize = new iText.Kernel.Geom.PageSize(image.Width, image.Height);
-            string OcrFile = @"C:\Users\JustinKozlowski\NewMyPage.pdf";
+            //System.Drawing.Image image = System.Drawing.Image.FromFile(@"C:\Users\JustinKozlowski\MyBestPage");
+            iText.Kernel.Geom.PageSize bmpSize = new iText.Kernel.Geom.PageSize(MyBmp.Width, MyBmp.Height);
+            string OcrFile = @"C:\Users\JustinKozlowski\NewMyPage" + PageNum + ".pdf";
             PdfWriter writer = new PdfWriter(OcrFile);
             PdfDocument OcrPdf = new PdfDocument(writer);
             Document document = new Document(OcrPdf, bmpSize);
-            iText.IO.Image.ImageData imgData = iText.IO.Image.ImageDataFactory.Create(@"C:\Users\JustinKozlowski\MyBestPage");
+            byte[] imgBytes = ImageToByte(MyBmp);
+            iText.IO.Image.ImageData imgData = iText.IO.Image.ImageDataFactory.Create(imgBytes);
             iText.Layout.Element.Image img = new iText.Layout.Element.Image(imgData);
             document.Add(img);
             document.Close();
@@ -226,8 +232,10 @@ namespace StudyGuideGeneratorV3
             using (var ePages = OcrPages.GetEnumerator())
             using (var eBitmaps = OcrBmps.GetEnumerator())
             {
+                int PageNum = 0;
                 while (ePages.MoveNext() && eBitmaps.MoveNext())
                 {
+                    PageNum += 1;
                     var Page = ePages.Current;
                     var Image = eBitmaps.Current;
                     List<OcrResult.OcrWord> MyWords = AnalyzedPDF.CompareWordsToListPerPage(Page);
@@ -235,16 +243,10 @@ namespace StudyGuideGeneratorV3
                     {
                         Console.WriteLine(word.Text);
                     }
-                    PdfEditor.CoverBmpWordsOfPage(MyWords, Image);
-
-                    // use item1 and item2
+                    Bitmap Bmp = PdfEditor.CoverBmpWordsOfPage(MyWords, Image);
+                    PdfEditor.BmpToPdf(Bmp, PageNum);
                 }
             }
-            
-            
-
-
-            PdfEditor.BmpToPdf();
             Console.WriteLine("Press any key to exit.");
             System.Console.ReadKey();
         }
