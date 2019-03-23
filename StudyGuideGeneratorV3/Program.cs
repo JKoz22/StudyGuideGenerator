@@ -23,8 +23,9 @@ namespace StudyGuideGeneratorV3
 {
     class MyOcr
     {
-        public OcrResult UseOcr()
+        public OcrResult UseOcr(string FileLocation)
         {
+            Console.WriteLine("Processing PDF");
             var Ocr = new AdvancedOcr()
             {
                 CleanBackgroundNoise = true,
@@ -39,7 +40,8 @@ namespace StudyGuideGeneratorV3
                 ReadBarCodes = false,
                 ColorDepth = 4
             };
-            var Results = Ocr.ReadPdf(@"C:\Users\JustinKozlowski\Figures.pdf", null);
+            var Results = Ocr.ReadPdf(FileLocation, null);
+            Console.WriteLine("PDF Processed");
             return Results;
         }
 
@@ -97,12 +99,31 @@ namespace StudyGuideGeneratorV3
     }
     class PdfEditor
     {
+        public static Bitmap ScaleToSize(Bitmap Bmp, int MyWidth, int MyHeight, Boolean Quality)
+        {
+            Double BmpWidth = Bmp.Width;
+            Double BmpHeight = Bmp.Height;
+            Double scale = Math.Min((Double)(MyWidth / BmpWidth), (Double)(MyHeight / BmpHeight));
+            Console.WriteLine(scale);
+            Bitmap resized = new Bitmap(Bmp, new Size((int)Math.Floor(Bmp.Width * scale), (int)Math.Floor(Bmp.Height * scale)));
+            return resized;
+        }
+        public static List<Bitmap> ScaleBitmapPages(List<Bitmap> CoveredPages, int MyWidth, int MyHeight, Boolean Quality)
+        {
+            List<Bitmap> PdfPages = new List<Bitmap>();
+            foreach(Bitmap bmp in CoveredPages)
+            {
+                Bitmap ScaledBmp = ScaleToSize(bmp, MyWidth, MyHeight, Quality);
+                PdfPages.Add(ScaledBmp);
+            }
+            return PdfPages;
+        }
         public static byte[] ImageToByte(System.Drawing.Image img)
         {
             ImageConverter converter = new ImageConverter();
             return (byte[])converter.ConvertTo(img, typeof(byte[]));
         }
-        public static void BmpToPdf(Bitmap MyBmp, int PageNum)
+        public static void BmpsToPdf(List<Bitmap> MyPages, string OcrFile,  int MyWidth, int MyHeight)
         {
             {
                 /*Document doc = new Document(PageSize.A4);
@@ -114,15 +135,18 @@ namespace StudyGuideGeneratorV3
                 doc.Close();*/
             }
             //System.Drawing.Image image = System.Drawing.Image.FromFile(@"C:\Users\JustinKozlowski\MyBestPage");
-            iText.Kernel.Geom.PageSize bmpSize = new iText.Kernel.Geom.PageSize(MyBmp.Width, MyBmp.Height);
-            string OcrFile = @"C:\Users\JustinKozlowski\NewMyPage" + PageNum + ".pdf";
+            iText.Kernel.Geom.PageSize bmpSize = new iText.Kernel.Geom.PageSize(MyWidth, MyHeight);
             PdfWriter writer = new PdfWriter(OcrFile);
             PdfDocument OcrPdf = new PdfDocument(writer);
             Document document = new Document(OcrPdf, bmpSize);
-            byte[] imgBytes = ImageToByte(MyBmp);
-            iText.IO.Image.ImageData imgData = iText.IO.Image.ImageDataFactory.Create(imgBytes);
-            iText.Layout.Element.Image img = new iText.Layout.Element.Image(imgData);
-            document.Add(img);
+            foreach (Bitmap MyBmp in MyPages)
+            {
+                byte[] imgBytes = ImageToByte(MyBmp);
+                iText.IO.Image.ImageData imgData = iText.IO.Image.ImageDataFactory.Create(imgBytes);
+                iText.Layout.Element.Image img = new iText.Layout.Element.Image(imgData);
+                document.Add(img);
+                document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+            }
             document.Close();
             writer.Close();
         }
@@ -224,8 +248,14 @@ namespace StudyGuideGeneratorV3
     {
         static void Main(string[] args)
         {
-            MyOcr FirstOcr =new MyOcr();
-            OcrResult FirstResult = FirstOcr.UseOcr();
+            Console.WriteLine("Input file path:");
+            string FileLocation = Console.ReadLine();  //@"C:\Users\JustinKozlowski\Figures.pdf"
+            Console.WriteLine("Output file path:");
+            string EndFileLocation = Console.ReadLine();  //@"C:\Users\JustinKozlowski\Final.pdf"
+            int PdfWidth = 620;
+            int PdfHeight = 877;
+            MyOcr FirstOcr = new MyOcr();
+            OcrResult FirstResult = FirstOcr.UseOcr(FileLocation);
             List<OcrResult.OcrPage> OcrPages = AnalyzedPDF.GetPages(FirstResult);
             List<Bitmap> OcrBmps = AnalyzedPDF.PageBitmaps(OcrPages);
             List<Bitmap> CoveredBitmaps = new List<Bitmap>();
@@ -241,12 +271,14 @@ namespace StudyGuideGeneratorV3
                     List<OcrResult.OcrWord> MyWords = AnalyzedPDF.CompareWordsToListPerPage(Page);
                     foreach(var word in MyWords)
                     {
-                        Console.WriteLine(word.Text);
+                        //Console.WriteLine(word.Text);
                     }
                     Bitmap Bmp = PdfEditor.CoverBmpWordsOfPage(MyWords, Image);
-                    PdfEditor.BmpToPdf(Bmp, PageNum);
+                    CoveredBitmaps.Add(Bmp);
                 }
             }
+            List<Bitmap> PdfDocument = PdfEditor.ScaleBitmapPages(CoveredBitmaps, PdfWidth, PdfHeight, true);
+            PdfEditor.BmpsToPdf(PdfDocument, EndFileLocation, PdfWidth, PdfHeight);
             Console.WriteLine("Press any key to exit.");
             System.Console.ReadKey();
         }
