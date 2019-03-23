@@ -211,7 +211,7 @@ namespace StudyGuideGeneratorV3
     {
         public static HashSet<String> FileReaderToCompare()
         {
-            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\JustinKozlowski\IdeaProjects\FileModifier\50k_sortedNoNums.txt");
+            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\JustinKozlowski\source\repos\StudyGuideGeneratorV3\WordFrequencyLists\50k_sortedNoNums.txt");
             HashSet<String> FrequentWords = new HashSet<String>();
             foreach (string line in lines)
             {
