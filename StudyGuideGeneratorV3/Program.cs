@@ -65,9 +65,8 @@ namespace StudyGuideGeneratorV3
             }
             return MyPages;
         }
-        public static List<OcrResult.OcrWord> CompareWordsToListPerPage(OcrResult.OcrPage MyPage)
+        public static List<OcrResult.OcrWord> CompareWordsToListPerPage(OcrResult.OcrPage MyPage, HashSet<String> BannedWords, HashSet<String> EnglishWords)
         {
-            HashSet<String> BannedWords = WordData.FileReaderToCompare();
             List<OcrResult.OcrWord> MyWords = new List<OcrResult.OcrWord>();
             foreach(var paragraph in MyPage.Paragraphs)
             {
@@ -75,7 +74,9 @@ namespace StudyGuideGeneratorV3
                 {
                     foreach(var word in line.Words)
                     {
-                        if (!(BannedWords.Contains(word.Text.ToLower())))
+                        //Console.WriteLine(word.Text.ToLower());
+                        //Console.WriteLine(EnglishWords.Contains(word.Text.ToLower()));
+                        if (!(BannedWords.Contains(word.Text.ToLower())) && (EnglishWords.Contains(word.Text.ToLower())))
                         {
                             MyWords.Add(word);
                         }
@@ -104,7 +105,6 @@ namespace StudyGuideGeneratorV3
             Double BmpWidth = Bmp.Width;
             Double BmpHeight = Bmp.Height;
             Double scale = Math.Min((Double)(MyWidth / BmpWidth), (Double)(MyHeight / BmpHeight));
-            Console.WriteLine(scale);
             Bitmap resized = new Bitmap(Bmp, new Size((int)Math.Floor(Bmp.Width * scale), (int)Math.Floor(Bmp.Height * scale)));
             return resized;
         }
@@ -235,7 +235,7 @@ namespace StudyGuideGeneratorV3
     {
         public static HashSet<String> FileReaderToCompare()
         {
-            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\JustinKozlowski\source\repos\StudyGuideGeneratorV3\WordFrequencyLists\50k_sortedNoNums.txt");
+            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\JustinKozlowski\source\repos\StudyGuideGeneratorV3\WordLists\50k_sortedNoNums.txt");
             HashSet<String> FrequentWords = new HashSet<String>();
             foreach (string line in lines)
             {
@@ -243,19 +243,31 @@ namespace StudyGuideGeneratorV3
             }
             return FrequentWords;
         }
+        public static HashSet<String> EnglishWords()
+        {
+            string[] lines = File.ReadAllLines(@"C:\Users\JustinKozlowski\source\repos\StudyGuideGeneratorV3\WordLists\words.txt");
+            HashSet<String> EnglishWords = new HashSet<String>();
+            foreach (string line in lines)
+            {
+                EnglishWords.Add(line.ToLower());
+            }
+            return EnglishWords;
+        }
     }
     class Program
     {
         static void Main(string[] args)
         {
             Console.WriteLine("Input file path:");
-            string FileLocation = Console.ReadLine();  //@"C:\Users\JustinKozlowski\Figures.pdf"
+            string FileLocation =Console.ReadLine() ;  //@"C:\Users\JustinKozlowski\OcrPdfs\Figures.pdf"
             Console.WriteLine("Output file path:");
-            string EndFileLocation = Console.ReadLine();  //@"C:\Users\JustinKozlowski\Final.pdf"
+            string EndFileLocation = Console.ReadLine();  //@"C:\Users\JustinKozlowski\OcrPdfs\Final.pdf"
             int PdfWidth = 620;
             int PdfHeight = 877;
             MyOcr FirstOcr = new MyOcr();
             OcrResult FirstResult = FirstOcr.UseOcr(FileLocation);
+            HashSet<String> English = WordData.EnglishWords();
+            HashSet<String> FrequentWords = WordData.FileReaderToCompare();
             List<OcrResult.OcrPage> OcrPages = AnalyzedPDF.GetPages(FirstResult);
             List<Bitmap> OcrBmps = AnalyzedPDF.PageBitmaps(OcrPages);
             List<Bitmap> CoveredBitmaps = new List<Bitmap>();
@@ -268,10 +280,10 @@ namespace StudyGuideGeneratorV3
                     PageNum += 1;
                     var Page = ePages.Current;
                     var Image = eBitmaps.Current;
-                    List<OcrResult.OcrWord> MyWords = AnalyzedPDF.CompareWordsToListPerPage(Page);
+                    List<OcrResult.OcrWord> MyWords = AnalyzedPDF.CompareWordsToListPerPage(Page, FrequentWords, English);
                     foreach(var word in MyWords)
                     {
-                        //Console.WriteLine(word.Text);
+                        Console.WriteLine(word.Text);
                     }
                     Bitmap Bmp = PdfEditor.CoverBmpWordsOfPage(MyWords, Image);
                     CoveredBitmaps.Add(Bmp);
